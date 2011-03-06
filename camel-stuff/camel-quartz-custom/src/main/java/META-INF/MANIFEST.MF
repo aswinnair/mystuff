@@ -1,0 +1,9 @@
+Manifest-Version: 1.0
+Archiver-Version: Plexus Archiver
+Created-By: Apache Maven
+Built-By: hadrian
+Build-Jdk: 1.6.0_22
+Bundle-SymbolicName: org.apache.camel.camel-quartz.source
+Bundle-Version: 2.6.0
+Eclipse-SourceBundle: org.apache.camel.camel-quartz;version="2.6.0"
+
