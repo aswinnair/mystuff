@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schema xmlns="http://www.w3.org/2001/XMLSchema" targetNamespace="http://in.thunk.test.camel.http.basic.beans/InstallResource" xmlns:tns="http://in.thunk.test.camel.http.basic.beans/InstallResource" elementFormDefault="qualified">
+	
+	<element name="resources" type="tns:ResourcesType"></element>
+
+    <complexType name="ResourcesType">
+    	<sequence>
+    		<element name="resource" type="tns:ResourceType"
+    			maxOccurs="unbounded" minOccurs="1">
+    		</element>
+    	</sequence>
+    </complexType>
+
+    <complexType name="ResourceType">
+    	<sequence>
+    		<element name="name" type="string"></element>
+    		<element name="url" type="string"></element>
+    		<element name="localPath" type="string"></element>
+    	</sequence>
+    </complexType>
+</schema>
