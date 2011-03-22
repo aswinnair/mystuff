@@ -32,9 +32,9 @@ public class JobComponentTest extends CamelTestSupport  {
 				
 				from("direct:test").routeId("test.one")
 				 .log( ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>my component is being called. huraray!!!!!!!!!!!!!")
-				 .to("job://OSProvisioning/provisionRequest/createBOOTEntry?provisionRequest=${blah}");
+				 .to("job://OSProvisioning/provisionRequest/createBOOTEntry");
 				
-				from("job://OSProvisioning/provisionRequest/createBOOTEntry?provisionRequest=${blah}").routeId("test.two")				 
+				from("job://OSProvisioning/provisionRequest/createBOOTEntry").routeId("test.two")				 
 				 .recipientList(header("endRoute")).ignoreInvalidEndpoints();
 				
 				from("job://group/job/step").routeId("test.two")				 

@@ -16,7 +16,9 @@
  */
 package in.thunk.camel.component.job;
 
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
@@ -43,15 +45,26 @@ public class JobEndpoint extends DefaultEndpoint {
     
     private static final transient Log LOG = LogFactory.getLog(JobEndpoint.class);    
     private LoadBalancer loadBalancer;
-    private Trigger trigger;
+    private List<Trigger> triggers;
     private JobDetail jobDetail;
     private volatile boolean started;
     private volatile boolean stateful;
-
+    private boolean jobParamSet;
+    
+    
     public JobEndpoint(final String endpointUri, final JobComponent component) {
         super(endpointUri, component);
         getJobDetail().setName("Job-" + getId());
     }
+    
+    
+
+	public void addTrigger(Trigger trigger) {				
+		if (triggers == null) {
+			triggers = new ArrayList<Trigger>();
+		}
+		triggers.add(trigger);
+	}	
 
     public void addTrigger(final Trigger trigger, final JobDetail detail) throws SchedulerException {
         // lets default the trigger name to the job name
@@ -136,7 +149,7 @@ public class JobEndpoint extends DefaultEndpoint {
     }
 
     public Producer createProducer() throws Exception {
-    	throw new UnsupportedOperationException("Does not have deafault producer for this endpoint");       
+    	return new JobProducer(this);     
     }
 
     public JobConsumer createConsumer(Processor processor) throws Exception {
@@ -145,7 +158,7 @@ public class JobEndpoint extends DefaultEndpoint {
 
     @Override
     protected String createEndpointUri() {
-        return "job://" + getTrigger().getGroup() + "/" + getTrigger().getName();
+        return "job://" + getJobDetail().getGroup() + "/" + getJobDetail().getName();
     }
 
     protected String getJobName() {
@@ -187,13 +200,13 @@ public class JobEndpoint extends DefaultEndpoint {
         this.jobDetail = jobDetail;
     }
 
-    public Trigger getTrigger() {
+/*    public Trigger getTrigger() {
         return trigger;
     }
 
     public void setTrigger(final Trigger trigger) {
         this.trigger = trigger;
-    }
+    }*/
 
     public boolean isStateful() {
         return this.stateful;
@@ -207,23 +220,28 @@ public class JobEndpoint extends DefaultEndpoint {
     // -------------------------------------------------------------------------
 
     public synchronized void consumerStarted(final JobConsumer consumer) throws SchedulerException {
-        ObjectHelper.notNull(trigger, "trigger");
+       // ObjectHelper.notNull(trigger, "trigger");
         if (LOG.isDebugEnabled()) {
             LOG.debug("Adding consumer " + consumer.getProcessor());
         }
         getLoadBalancer().addProcessor(consumer.getProcessor());
 
-        // if we have not yet added our default trigger, then lets do it
+        // add all the triggers, if we have not already done it
         if (!started) {
-            addTrigger(getTrigger(), getJobDetail());
+        	for (Trigger trigger : triggers) {
+        		addTrigger(trigger, getJobDetail());
+        	}
             started = true;
         }
     }
 
     public synchronized void consumerStopped(final JobConsumer consumer) throws SchedulerException {
-        ObjectHelper.notNull(trigger, "trigger");
+      //  ObjectHelper.notNull(trigger, "trigger");
         if (started) {
-            pauseTrigger(getTrigger());
+        
+        	for (Trigger trigger : triggers) {
+        		pauseTrigger(trigger);
+        	}
             started = false;
         }
 
@@ -251,11 +269,22 @@ public class JobEndpoint extends DefaultEndpoint {
     }
 
     public void shutdown() throws Exception {
-        ObjectHelper.notNull(trigger, "trigger");
-        deleteTrigger(getTrigger());
+       // ObjectHelper.notNull(trigger, "trigger");
+    	for (Trigger trigger: triggers) {
+    		deleteTrigger(trigger);
+    	}
     }
 
 	public JobConsumer getConsumer() {
 		return null;
 	}
+
+	public boolean isJobParamSet() {
+		return jobParamSet;
+	}
+
+	public void setJobParamSet(boolean jobParamSet) {
+		this.jobParamSet = jobParamSet;
+	}
+
 }
