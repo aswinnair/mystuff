@@ -1,15 +1,24 @@
 package in.thunk.camel.component.job;
 
+import org.springframework.util.StringUtils;
+
 public class JobKey {
 
 	private String group;
 	private String name;
+	private String[] segments;
+	private String url;
 	
+	public JobKey(String group, String name) {		
+		this(group, name, null);
+	}	
 	
-	public JobKey(String group, String name) {
+	public JobKey(String group, String name, String ... segments) {
 		super();
 		this.group = group;
 		this.name = name;
+		this.segments = segments;
+		this.url = String.format("job://%s/%s/%s", getGroup(), getName(), StringUtils.arrayToDelimitedString(segments, "/"));
 	}
 
 	public String getGroup() {
@@ -19,12 +28,22 @@ public class JobKey {
 	public String getName() {
 		return name;
 	}
+		
+	public String[] getSegments() {
+		return segments;
+	}
+
+	public String getURL(){
+		return url;		 
+	}	
 
 	@Override
 	public String toString() {
 		return "JobKey [group=" + group + ", name=" + name + "]";
 	}
 
+	
+	
 	@Override
 	public int hashCode() {
 		final int prime = 31;

@@ -1,5 +1,6 @@
 package in.thunk.camel.component.job;
 
+import org.apache.camel.CamelContext;
 import org.apache.camel.LoggingLevel;
 import org.apache.camel.Produce;
 import org.apache.camel.ProducerTemplate;
@@ -25,23 +26,36 @@ public class JobComponentTest extends CamelTestSupport  {
 		
 	@Override
 	protected RouteBuilder createRouteBuilder() throws Exception {
-		return new RouteBuilder() {			
+		return new RouteBuilder() {		
+				
+			
 			@Override
 			public void configure() throws Exception {				
+				
 				getContext().addInterceptStrategy(getTracer());
+								
 				
 				from("direct:test").routeId("test.one")
 				 .log( ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>my component is being called. huraray!!!!!!!!!!!!!")
-				 .to("job://OSProvisioning/provisionRequest/createBOOTEntry");
+				 .to("job://OSP/provisionRequest/collectData");
 				
-				from("job://OSProvisioning/provisionRequest/createBOOTEntry").routeId("test.two")				 
-				 .recipientList(header("endRoute")).ignoreInvalidEndpoints();
+				from("job://OSP/provisionRequest/collectData").routeId("test.two")				 
+				 .log("collect data")
+				 .to("job://OSP/provisionRequest/bootserverChanges");
 				
-				from("job://group/job/step").routeId("test.two")				 
-				 .log("Second consumer being called");	
-			}
-		
-			
+				from("job://OSP/provisionRequest/bootserverChanges").routeId("test.three")				 
+				 .log("start boot changes")
+				 .to("job://OSP/provisionRequest/startBootProcess");
+				
+				from("job://OSP/provisionRequest/startBootProcess").routeId("test.four")				 
+				 .log("start boot process")
+				 .to("job://OSP/watchProgress");
+				
+				from("job://OSP/watchProgress").routeId("test.five")				 
+				 .log("watching progress")
+				 .log(">>>>>>>>>>>>DONE>>>>>>>>>>>>>>>>>>>>>>>>>>");
+				 
+			}	
 		};
 	}
 	

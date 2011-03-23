@@ -40,7 +40,7 @@ public class JobMessage extends DefaultMessage {
             Trigger trigger = jobExecutionContext.getTrigger();
             map.put("trigger", trigger);
             map.put("triggerName", trigger.getName());
-            map.put("triggerGroup", trigger.getGroup());
+            map.put("triggerGroup", trigger.getGroup());            
         }
     }
 }

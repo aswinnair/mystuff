@@ -18,6 +18,8 @@ package in.thunk.camel.component.job;
 
 import org.apache.camel.Exchange;
 import org.apache.camel.impl.DefaultProducer;
+import org.quartz.JobDetail;
+import org.quartz.SimpleTrigger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,9 +39,29 @@ public class JobProducer extends DefaultProducer {
     }
     
     public void process(Exchange exchange) throws Exception {
-       logger.info("Producing>>>>>>>>>>>>>>>>>>>>>>>>");
-        getEndpoint().getConsumer().getProcessor().process(exchange);
+       logger.info("Save state to persister");
+       
+       if (null == exchange.getProperty(JobConstants.JOB_ID)){
+    	   //schedule a job and return
+    	   JobDetail jobDetail = createJobDetail(exchange);
+    	   getEndpoint().addTrigger(new SimpleTrigger(), jobDetail);    	   
+    	   return;
+       }
+       
+       //this is just a step and we are already in a Quartz job context, sync the data using the syncer and process inline
+       
+       getEndpoint().getJobDataPersister().deHydrate(exchange, exchange.getProperty(JobConstants.JOB_ID, String.class));       
+       getEndpoint().getConsumer().getProcessor().process(exchange);
         
     }
+
+	private JobDetail createJobDetail(Exchange exchange) {
+		JobKey jobkey = getEndpoint().getJobKey();
+		String jobId = getEndpoint().getIdGenerator().generateID(exchange);
+		
+		JobDetail jobDetail = new JobDetail(String.format("%s_%s",jobkey.getName(), jobId) , jobkey.getGroup(), StatefulCamelJob.class);
+		jobDetail.getJobDataMap().put(JobConstants.JOB_ID, jobId);
+		return jobDetail;
+	}
 
 }

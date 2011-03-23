@@ -21,10 +21,12 @@ import java.util.Date;
 import java.util.List;
 
 import org.apache.camel.Exchange;
+import org.apache.camel.Expression;
 import org.apache.camel.Processor;
 import org.apache.camel.Producer;
 import org.apache.camel.impl.DefaultEndpoint;
 import org.apache.camel.impl.ServiceSupport;
+import org.apache.camel.language.simple.SimpleLanguage;
 import org.apache.camel.processor.loadbalancer.LoadBalancer;
 import org.apache.camel.processor.loadbalancer.RoundRobinLoadBalancer;
 import org.apache.camel.util.ExchangeHelper;
@@ -45,24 +47,25 @@ public class JobEndpoint extends DefaultEndpoint {
     
     private static final transient Log LOG = LogFactory.getLog(JobEndpoint.class);    
     private LoadBalancer loadBalancer;
-    private List<Trigger> triggers;
+    private List<Trigger> triggers = new ArrayList<Trigger>();
     private JobDetail jobDetail;
     private volatile boolean started;
     private volatile boolean stateful;
     private boolean jobParamSet;
+    //private String jobIDExpressionString;
+    private JobKey jobkey;
+    //private Expression jobIdExpression;
+    private JobIDGenerator idGenerator;
     
-    
-    public JobEndpoint(final String endpointUri, final JobComponent component) {
-        super(endpointUri, component);
-        getJobDetail().setName("Job-" + getId());
+    public JobEndpoint(JobKey jobkey, String expression, JobComponent component) {
+    	super(jobkey.getURL(), component);
+    	this.jobkey = jobkey;
+    	//this.jobIDExpressionString = expression;
+    	//jobIdExpression = SimpleLanguage.simple(jobIDExpressionString);
     }
-    
-    
+   
 
-	public void addTrigger(Trigger trigger) {				
-		if (triggers == null) {
-			triggers = new ArrayList<Trigger>();
-		}
+	public void addTrigger(Trigger trigger) {
 		triggers.add(trigger);
 	}	
 
@@ -145,6 +148,7 @@ public class JobEndpoint extends DefaultEndpoint {
     public Exchange createExchange(final JobExecutionContext jobExecutionContext) {
         Exchange exchange = createExchange();
         exchange.setIn(new JobMessage(exchange, jobExecutionContext));
+        exchange.setProperty(JobConstants.JOB_ID, jobExecutionContext.getMergedJobDataMap().get(JobConstants.JOB_ID));
         return exchange;
     }
 
@@ -158,7 +162,7 @@ public class JobEndpoint extends DefaultEndpoint {
 
     @Override
     protected String createEndpointUri() {
-        return "job://" + getJobDetail().getGroup() + "/" + getJobDetail().getName();
+        return jobkey.getURL();
     }
 
     protected String getJobName() {
@@ -287,4 +291,46 @@ public class JobEndpoint extends DefaultEndpoint {
 		this.jobParamSet = jobParamSet;
 	}
 
+
+	public DataSyncer getJobDataPersister() {
+		 DataSyncer lookup = getCamelContext().getRegistry().lookup("jobPersister", DataSyncer.class);
+		 if (lookup == null) {
+			 lookup = defaultDataSyncer;
+		 }
+		 return lookup;
+	}
+
+	DataSyncer defaultDataSyncer = new DataSyncer() {
+		
+		public void hydrate(Exchange exchange, String job) {
+			System.out.println(">>>>>>>>HYDRATING DATA>>>>>>>>>>>>>");
+		}
+		
+		public void deHydrate(Exchange exchange, String id) {
+			System.out.println(">>>>>>>>DEEEHYDRATING DATA>>>>>>>>>>>>>");
+		}
+	};
+
+/*	public Expression getJobIdExpression() {
+		return jobIdExpression;
+	}
+*/
+
+	public JobIDGenerator getIdGenerator() {
+		if (idGenerator == null) {
+			idGenerator = defaultIdGenerator;
+		}
+		return idGenerator;
+	}
+	
+	JobIDGenerator defaultIdGenerator = new JobIDGenerator() {
+		public int counter = 1;
+		public String generateID(Exchange exchange) {
+			return Integer.toString(counter++);
+		}
+	};
+
+	public JobKey getJobKey() {
+		return jobkey;
+	}
 }

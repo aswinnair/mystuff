@@ -21,6 +21,7 @@ import java.io.InputStream;
 import java.net.URI;
 import java.text.ParseException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -43,6 +44,10 @@ import org.quartz.SchedulerFactory;
 import org.quartz.SimpleTrigger;
 import org.quartz.Trigger;
 import org.quartz.impl.StdSchedulerFactory;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.StringUtils;
+
+import com.google.common.collect.*;
 
 /**
  * A <a href="http://camel.apache.org/quartz.html">Quartz Component</a>
@@ -63,7 +68,9 @@ public class JobComponent extends DefaultComponent implements StartupListener {
 	private String propertiesFile;
 	private int startDelayedSeconds;
 	private boolean autoStartScheduler = true;
-	Map<JobKey, JobEndpoint> endpoints = new HashMap<JobKey, JobEndpoint>();
+	Multimap<JobKey, JobEndpoint> endpoints = HashMultimap.create(); 
+	
+	
 
 	private final class JobToAdd {
 		private final JobDetail job;
@@ -100,7 +107,10 @@ public class JobComponent extends DefaultComponent implements StartupListener {
 
 		String[] fragments = jobString.split("/");
 		String name = fragments[0];
-
+		String stepName = fragments.length > 1 ? fragments[1] : null;
+		
+		
+		String expression = getAndRemoveParameter(parameters, "jobId", String.class);
 		String cron = getAndRemoveParameter(parameters, "cron", String.class);
 		Boolean fireNow = getAndRemoveParameter(parameters, "fireNow", Boolean.class, Boolean.FALSE);
 
@@ -111,57 +121,65 @@ public class JobComponent extends DefaultComponent implements StartupListener {
 		Map<String, Object> triggerParameters = IntrospectionSupport.extractProperties(parameters, "trigger.");
 		Map<String, Object> jobParameters = IntrospectionSupport.extractProperties(parameters, "job.");
 
-		JobKey key = new JobKey(group, name);
+		JobKey key = new JobKey(group, name, stepName);
 
-		JobEndpoint answer = endpoints.get(key);
-		if (answer == null) {
-			answer = new JobEndpoint(uri, this);
-			endpoints.put(key, answer);
-		}
-
-		if (!jobParameters.isEmpty()) {
-			if (answer.isJobParamSet()) {
-				throw new IllegalArgumentException("Job parameters can be set only once for a specific job. Failing at uri " + uri);
-			}
-			answer.setStateful(true); //set true to default, and can be overridden by parameters
-			setProperties(answer.getJobDetail(), jobParameters);
-			answer.setJobParamSet(true);
-		}
-
-		// setting regular Quartz consumer with trigger and stuff
-
-		Trigger trigger = null;
-
-		// if we're starting up and not running in Quartz clustered mode
-		// then check for a name conflict.
-		if (!isClustered()) {
-			// check to see if this trigger already exists
-			trigger = getScheduler().getTrigger(name, group);
-			if (trigger != null) {
-				String msg = "A Quartz job already exists with the name/group: " + name + "/" + group;
-				throw new IllegalArgumentException(msg);
+		Collection<JobEndpoint> tasksEndpoints = endpoints.get(key);
+		
+		for (JobEndpoint jobEndpoint : tasksEndpoints) {
+			if (uri.equals(jobEndpoint.getEndpointUri())){
+				
+				if (!jobParameters.isEmpty()) {
+					if (jobEndpoint.isJobParamSet()) {
+						throw new IllegalArgumentException("Job parameters can be set only once for a specific job. Failing at uri " + uri);
+					}
+					setProperties(jobEndpoint.getJobDetail(), jobParameters);
+					jobEndpoint.setJobParamSet(true);
+				}				
+				return jobEndpoint;
 			}
 		}
+		
+		JobEndpoint answer = new JobEndpoint(key, expression, this);
+		tasksEndpoints.add(answer);
 
-		// create the trigger either cron or simple
-		if (ObjectHelper.isNotEmpty(cron)) {
-			trigger = createCronTrigger(cron);
-		} else {
-			trigger = new SimpleTrigger();
-			if (fireNow) {
-				String intervalString = (String) triggerParameters.get("repeatInterval");
-				if (intervalString != null) {
-					long interval = Long.valueOf(intervalString);
-					trigger.setStartTime(new Date(System.currentTimeMillis() - interval));
+		answer.setStateful(true); //set it true by default, and the route definition can override
+		setProperties(answer.getJobDetail(), jobParameters);
+		
+		if (! triggerParameters.isEmpty()) { 			// setting regular Quartz consumer with trigger and stuff
+
+			Trigger trigger = null;
+	
+			// if we're starting up and not running in Quartz clustered mode
+			// then check for a name conflict.
+			if (!isClustered()) {
+				// check to see if this trigger already exists
+				trigger = getScheduler().getTrigger(name, group);
+				if (trigger != null) {
+					String msg = "A Quartz job already exists with the name/group: " + name + "/" + group;
+					throw new IllegalArgumentException(msg);
 				}
 			}
+	
+			// create the trigger either cron or simple
+			if (ObjectHelper.isNotEmpty(cron)) {
+				trigger = createCronTrigger(cron);
+			} else {
+				trigger = new SimpleTrigger();
+				if (fireNow) {
+					String intervalString = (String) triggerParameters.get("repeatInterval");
+					if (intervalString != null) {
+						long interval = Long.valueOf(intervalString);
+						trigger.setStartTime(new Date(System.currentTimeMillis() - interval));
+					}
+				}
+			}
+	
+			setProperties(trigger, triggerParameters);
+			trigger.setName(name);
+			trigger.setGroup(group);
+	
+			answer.addTrigger(trigger);
 		}
-
-		setProperties(trigger, triggerParameters);
-		trigger.setName(name);
-		trigger.setGroup(group);
-
-		answer.addTrigger(trigger);
 
 		return answer;
 
