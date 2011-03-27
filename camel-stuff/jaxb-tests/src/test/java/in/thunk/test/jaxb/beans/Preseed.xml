@@ -1,0 +1,10 @@
+<kickstart>
+	<kernelFileUrl>http://localhost:8080/installservices/preseed-sbe/v1/vmlinuz</kernelFileUrl>
+	<kernelLocation>profiles/preseed-sbe/v1/vmlinuz</kernelLocation>;
+	
+	<initrdFileUrl>http://localhost:8080/installservices/preseed-sbe/v1/initrd</initrdFileUrl>;
+	<initrdFileLocation>profiles/preseed-sbe/v1/initrd.gz</initrdFileLocation>;
+	
+	<pxeConfigFileUrl>http://localhost:8080/installservices/preseed-sbe/v1/pxeconfig.template?mac=aa:bb:cc:dd:ee:ff</pxeConfigFileUrl>;
+	<pxeConfigFileLocation>pxelinux.cfg/01-ff-ff-ff-ff-ff-ff</pxeConfigFileLocation>;
+</kickstart>

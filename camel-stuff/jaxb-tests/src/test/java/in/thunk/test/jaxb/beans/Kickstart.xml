@@ -1,0 +1,10 @@
+<kickstart>
+	<kernelFileUrl>http://localhost:8080/installservices/kickstart-agg/v1/vmlinuz</kernelFileUrl>
+	<kernelLocation>profiles/kickstart-agg/v1/vmlinuz</kernelLocation>;
+	
+	<initrdFileUrl>http://localhost:8080/installservices/kickstart-agg/v1/initrd</initrdFileUrl>;
+	<initrdFileLocation>profiles/kickstart-agg/v1/initrd.gz</initrdFileLocation>;
+	
+	<pxeConfigFileUrl>http://localhost:8080/installservices/kickstart-agg/v1/pxeconfig.template?mac=aa:bb:cc:dd:ee:ff</pxeConfigFileUrl>;
+	<pxeConfigFileLocation>pxelinux.cfg/01-aa-bb-cc-dd-ee-ff</pxeConfigFileLocation>;
+</kickstart>
